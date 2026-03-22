@@ -1,5 +1,5 @@
 /**
- * Logic for calculating quantum attractors using ANU QRNG API and Silverman KDE.
+ * Logic for calculating attractors using local CSPRNG and Silverman KDE.
  */
 
 export interface Point {
@@ -20,15 +20,12 @@ const EARTH_RADIUS = 6371; // km
 const ONE_DEGREE = (EARTH_RADIUS * 2 * Math.PI) / 360 * 1000;
 
 /**
- * Fetches quantum random numbers from ANU API.
+ * Generates random numbers using the browser's native CSPRNG.
  */
 export async function fetchQuantumNumbers(length: number = 1024): Promise<number[]> {
-  const response = await fetch(`https://qrng.anu.edu.au/API/jsonI.php?length=${length}&type=uint16`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch quantum numbers from ANU API");
-  }
-  const data = await response.json();
-  return data.data;
+  const array = new Uint16Array(length);
+  globalThis.crypto.getRandomValues(array);
+  return Array.from(array);
 }
 
 /**
