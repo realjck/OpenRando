@@ -58,6 +58,19 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showInfo, setShowInfo] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval>;
+    if (cooldown > 0) {
+      timer = setInterval(() => {
+        setCooldown(prev => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [cooldown]);
 
   // Get user location on mount
   useEffect(() => {
@@ -88,6 +101,7 @@ export default function App() {
       const quantumNumbers = await fetchQuantumNumbers();
       const result = calculateAttractor(startPos[0], startPos[1], radius, quantumNumbers);
       setAttractor(result);
+      setCooldown(120);
     } catch (err) {
       console.error("Generation error:", err);
       setError("Error during quantum generation. Please try again.");
@@ -227,9 +241,9 @@ export default function App() {
 
             <button 
               onClick={handleGenerate}
-              disabled={loading}
+              disabled={loading || cooldown > 0}
               className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${
-                loading 
+                loading || cooldown > 0
                 ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' 
                 : 'bg-white text-black hover:bg-zinc-200 active:scale-[0.98]'
               }`}
@@ -242,7 +256,7 @@ export default function App() {
               ) : (
                 <>
                   <RefreshCw className="w-6 h-6" />
-                  Generate Attractor
+                  {cooldown > 0 ? `Generate Attractor (${cooldown}s)` : 'Generate Attractor'}
                 </>
               )}
             </button>
