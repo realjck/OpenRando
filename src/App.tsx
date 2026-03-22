@@ -1,11 +1,11 @@
 import { useState, useEffect, memo } from 'react';
 import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { 
-  Navigation, 
-  Compass, 
-  ExternalLink, 
-  RefreshCw, 
+import {
+  Navigation,
+  Compass,
+  ExternalLink,
+  RefreshCw,
   Settings2,
   LocateFixed,
   Info,
@@ -33,6 +33,22 @@ const attractorIcon = L.divIcon({
   iconAnchor: [16, 16],
 });
 
+const GithubIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+    <path d="M9 18c-4.51 2-5-2-7-2" />
+  </svg>
+);
+
 // Component to handle map center updates
 function MapController({ center }: { center: [number, number] }) {
   const map = useMap();
@@ -54,10 +70,10 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lon: number
 
 const RadiusSlider = memo(function RadiusSlider({ radius, setRadius }: { radius: number, setRadius: (val: number) => void }) {
   return (
-    <input 
-      type="range" 
-      min="500" 
-      max="5000" 
+    <input
+      type="range"
+      min="500"
+      max="5000"
       step="100"
       value={radius}
       onChange={(e) => setRadius(parseInt(e.target.value))}
@@ -125,7 +141,7 @@ export default function App() {
           </div>
           <h1 className="text-xl font-bold tracking-tight text-white drop-shadow-md">OpenRando</h1>
         </div>
-        <button 
+        <button
           onClick={() => setShowInfo(!showInfo)}
           className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white pointer-events-auto border border-white/10"
         >
@@ -135,9 +151,9 @@ export default function App() {
 
       {/* Map Container */}
       <div className="flex-1 relative">
-        <MapContainer 
-          center={startPos} 
-          zoom={14} 
+        <MapContainer
+          center={startPos}
+          zoom={14}
           style={{ height: '100%', width: '100%' }}
           zoomControl={false}
           attributionControl={true}
@@ -148,13 +164,13 @@ export default function App() {
           />
           <MapController center={startPos} />
           <MapClickHandler onMapClick={handleMapClick} />
-          
+
           <Marker position={startPos} icon={startIcon} />
-          
-          <Circle 
-            center={startPos} 
-            radius={radius} 
-            pathOptions={{ color: '#8b5cf6', weight: 1, fillColor: '#8b5cf6', fillOpacity: 0.1 }} 
+
+          <Circle
+            center={startPos}
+            radius={radius}
+            pathOptions={{ color: '#8b5cf6', weight: 1, fillColor: '#8b5cf6', fillOpacity: 0.1 }}
           />
 
           {attractor && (
@@ -164,7 +180,7 @@ export default function App() {
 
         {/* Floating Action Buttons */}
         <div className="absolute right-4 top-24 z-[1000] flex flex-col gap-3">
-          <button 
+          <button
             onClick={handleGetCurrentLocation}
             className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/10 shadow-lg active:scale-95 transition-transform"
             title="My position"
@@ -179,7 +195,7 @@ export default function App() {
         <div className="max-w-md mx-auto space-y-4">
           <AnimatePresence>
             {attractor && (
-              <motion.div 
+              <motion.div
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 20, opacity: 0 }}
@@ -194,7 +210,7 @@ export default function App() {
                     <div className="bg-purple-500/20 px-2 py-1 rounded text-[10px] font-mono text-purple-300 border border-purple-500/30">
                       Score: {attractor.densityScore.toFixed(2)}
                     </div>
-                    <button 
+                    <button
                       onClick={() => setAttractor(null)}
                       className="w-7 h-7 flex items-center justify-center bg-black/20 hover:bg-black/40 rounded-full text-zinc-400 hover:text-white transition-colors border border-white/5"
                     >
@@ -202,7 +218,7 @@ export default function App() {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="bg-black/40 p-2 rounded-lg border border-white/5">
                     <span className="text-[10px] text-zinc-500 block uppercase">Latitude</span>
@@ -214,7 +230,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <a 
+                <a
                   href={attractor.googleMapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -236,17 +252,16 @@ export default function App() {
               </div>
               <span className="text-sm font-bold text-purple-400">{radius}m</span>
             </div>
-            
+
             <RadiusSlider radius={radius} setRadius={setRadius} />
 
-            <button 
+            <button
               onClick={handleGenerate}
               disabled={loading}
-              className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${
-                loading 
-                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' 
+              className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${loading
+                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                 : 'bg-white text-black hover:bg-zinc-200 active:scale-[0.98]'
-              }`}
+                }`}
             >
               {loading ? (
                 <>
@@ -271,14 +286,14 @@ export default function App() {
       {/* Info Modal */}
       <AnimatePresence>
         {showInfo && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[2000] bg-black/80 backdrop-blur-md flex items-center justify-center p-6"
             onClick={() => setShowInfo(false)}
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -291,7 +306,7 @@ export default function App() {
                   OpenRando uses your device's native Cryptographically Secure Random Number Generator to create unique destination points.
                 </p>
                 <p>
-                  The principle is to break your daily routine by sending you to areas of high "vibration", calculated by a Kernel Density Estimation (KDE) on 512 quantum points.
+                  The principle is to break your daily routine by sending you to areas of high "vibration", calculated by a Kernel Density Estimation (KDE) on 512 points.
                 </p>
                 <div className="bg-black/30 p-3 rounded-xl border border-white/5">
                   <p className="text-xs font-bold text-purple-400 uppercase mb-1">How to use:</p>
@@ -303,12 +318,23 @@ export default function App() {
                   </ul>
                 </div>
               </div>
-              <button 
-                onClick={() => setShowInfo(false)}
-                className="w-full mt-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors"
-              >
-                Close
-              </button>
+              <div className="mt-6 space-y-3">
+                <a
+                  href="https://github.com/realjck/OpenRando"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-medium rounded-xl transition-colors border border-white/10"
+                >
+                  <GithubIcon className="w-5 h-5" />
+                  View on GitHub
+                </a>
+                <button
+                  onClick={() => setShowInfo(false)}
+                  className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
