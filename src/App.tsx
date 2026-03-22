@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { 
@@ -8,7 +8,8 @@ import {
   RefreshCw, 
   Settings2,
   LocateFixed,
-  Info
+  Info,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchQuantumNumbers, calculateAttractor, AttractorResult } from './services/quantumService';
@@ -50,6 +51,20 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lon: number
   });
   return null;
 }
+
+const RadiusSlider = memo(function RadiusSlider({ radius, setRadius }: { radius: number, setRadius: (val: number) => void }) {
+  return (
+    <input 
+      type="range" 
+      min="500" 
+      max="5000" 
+      step="100"
+      value={radius}
+      onChange={(e) => setRadius(parseInt(e.target.value))}
+      className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500 mb-6"
+    />
+  );
+});
 
 export default function App() {
   const [startPos, setStartPos] = useState<[number, number]>([48.8566, 2.3522]); // Default Paris
@@ -112,7 +127,6 @@ export default function App() {
 
   const handleMapClick = (lat: number, lon: number) => {
     setStartPos([lat, lon]);
-    setAttractor(null);
   };
 
   return (
@@ -190,8 +204,16 @@ export default function App() {
                     <span className="text-xs font-bold uppercase tracking-widest text-purple-400">Destination Found</span>
                     <h3 className="text-lg font-bold text-white">Quantum Attractor</h3>
                   </div>
-                  <div className="bg-purple-500/20 px-2 py-1 rounded text-[10px] font-mono text-purple-300 border border-purple-500/30">
-                    Score: {attractor.densityScore.toFixed(2)}
+                  <div className="flex items-center gap-2">
+                    <div className="bg-purple-500/20 px-2 py-1 rounded text-[10px] font-mono text-purple-300 border border-purple-500/30">
+                      Score: {attractor.densityScore.toFixed(2)}
+                    </div>
+                    <button 
+                      onClick={() => setAttractor(null)}
+                      className="w-7 h-7 flex items-center justify-center bg-black/20 hover:bg-black/40 rounded-full text-zinc-400 hover:text-white transition-colors border border-white/5"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
                 
@@ -229,15 +251,7 @@ export default function App() {
               <span className="text-sm font-bold text-purple-400">{radius}m</span>
             </div>
             
-            <input 
-              type="range" 
-              min="500" 
-              max="5000" 
-              step="100"
-              value={radius}
-              onChange={(e) => setRadius(parseInt(e.target.value))}
-              className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500 mb-6"
-            />
+            <RadiusSlider radius={radius} setRadius={setRadius} />
 
             <button 
               onClick={handleGenerate}
