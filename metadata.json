@@ -1,0 +1,5 @@
+{
+  "name": "OpenRando",
+  "description": "A quantum randonautica application to discover unusual places around you.",
+  "requestFramePermissions": ["geolocation"]
+}
