@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ "main" ] # Déclenche le déploiement sur chaque push vers main
+    branches: [ "main" ]
 
 permissions:
   contents: read
@@ -12,6 +12,8 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # Force l'usage de Node 24
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,7 +21,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24 # On passe en version 24
           cache: 'npm'
 
       - name: Install dependencies
@@ -29,12 +31,12 @@ jobs:
         run: npm run build
 
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5 # Vérifiez si v5 est dispo, sinon restez en v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist' # Vite génère le build ici
+          path: './dist'
 
       - name: Deploy to GitHub Pages
         id: deployment
