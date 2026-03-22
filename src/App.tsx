@@ -76,7 +76,7 @@ const RadiusSlider = memo(function RadiusSlider({ radius, setRadius }: { radius:
       max="5000"
       step="100"
       value={radius}
-      onChange={(e) => setRadius(parseInt(e.target.value))}
+      onChange={(e) => setRadius(Number.parseInt(e.target.value))}
       className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500 mb-6"
     />
   );
