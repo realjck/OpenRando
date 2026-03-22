@@ -102,7 +102,7 @@ export default function App() {
   };
 
   return (
-    <div className="relative h-screen w-screen flex flex-col bg-black overflow-hidden">
+    <div className="relative h-[100dvh] w-screen flex flex-col bg-black overflow-hidden">
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 z-[1000] p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
         <div className="flex items-center gap-2 pointer-events-auto">
