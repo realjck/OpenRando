@@ -1,20 +1,13 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# OpenRando
 
-# Run and deploy your AI Studio app
+OpenRando is an open-source, web-based alternative to Randonautica that generates unique, random real-world coordinates for you to explore. 
 
-This contains everything you need to run your app locally.
+By leveraging true quantum random numbers from the Australian National University (ANU) and applying Kernel Density Estimation (KDE), the application calculates concentrated areas of probability ("attractors") to break your daily routine and send you on an adventure. 
 
-View your app in AI Studio: https://ai.studio/apps/75e350c8-a63b-4e82-8150-1307f7bb81c9
+**Features:**
+- Set your starting location via GPS or by clicking on the map.
+- Choose a search radius between 500m and 5km.
+- Generate quantum-backed destination points.
+- Open the generated coordinates directly in Google Maps. 
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Built with React, Leaflet, and Tailwind CSS.
