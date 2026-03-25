@@ -169,15 +169,16 @@ export default function App() {
         const timeDiff = now - lastFetchRef.current.time;
         const optionsChanged = optionsKey !== lastFetchRef.current.options;
 
-        if (dist < threshold && radiusDiff < 10 && !optionsChanged) return;
-        if (timeDiff < 3000 && !optionsChanged) return;
+        // Only skip if we have data AND nothing significant changed
+        if (dist < threshold && radiusDiff < 10 && !optionsChanged && publicAreas.length > 0) return;
+        if (timeDiff < 3000 && !optionsChanged && publicAreas.length > 0) return;
       }
 
       handleFetchMapData(fetchRadius);
-    }, 1000);
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [showPublicAreas, startPos, fetchRadius, radius]);
+  }, [showPublicAreas, startPos, fetchRadius, radius, publicAreas.length]);
 
   useEffect(() => {
     if (error?.includes("rate limit")) {
@@ -551,7 +552,7 @@ export default function App() {
                   OpenRando uses your device's native Cryptographically Secure Random Number Generator to create unique destination points.
                 </p>
                 <p>
-                  The principle is to break your daily routine by sending you to areas of high "vibration", calculated by a Kernel Density Estimation (KDE) on 512 points.
+                  The principle is to break your daily routine by guiding you toward areas of high "vibration", identified using a Kernel Density Estimation (KDE) computed from 512 random GPS points.
                 </p>
                 <div className="bg-black/30 p-3 rounded-xl border border-white/5">
                   <p className="text-xs font-bold text-purple-400 uppercase mb-1">How to use:</p>
