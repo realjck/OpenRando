@@ -118,7 +118,8 @@ export default function App() {
   const [showPublicAreas, setShowPublicAreas] = useState(false);
   const [parkingSpots, setParkingSpots] = useState<ParkingPoint[]>([]);
   const [publicAreas, setPublicAreas] = useState<PublicArea[]>([]);
-  const [loadingMapData, setLoadingMapData] = useState(false);
+  const [loadingParking, setLoadingParking] = useState(false);
+  const [loadingPublicAreas, setLoadingPublicAreas] = useState(false);
 
   // Cache and tracking for optimization
   const lastFetchRef = useRef<{ pos: [number, number], radius: number, time: number, options: string } | null>(null);
@@ -144,25 +145,23 @@ export default function App() {
     return R * c;
   };
 
-  // Debounced fetch for map data (Parking & Public Areas)
+  // Debounced fetch for public areas
   useEffect(() => {
-    if (!showParking && !showPublicAreas) {
-      setParkingSpots([]);
+    if (!showPublicAreas) {
       setPublicAreas([]);
+      // Only abort public areas controller
       if (mapDataAbortControllerRef.current) {
         mapDataAbortControllerRef.current.abort();
         mapDataAbortControllerRef.current = null;
       }
-      setLoadingMapData(false);
       return;
     }
 
     const timer = setTimeout(() => {
       // Optimization: Only fetch if moved significantly or radius changed
-      // Threshold: 10% of radius or 50 meters, whichever is smaller
       const threshold = Math.min(radius * 0.1, 50);
       const now = Date.now();
-      const optionsKey = `${showParking}-${showPublicAreas}`;
+      const optionsKey = `${showPublicAreas}`;
 
       if (lastFetchRef.current) {
         const dist = getDistance(startPos, lastFetchRef.current.pos);
@@ -170,44 +169,36 @@ export default function App() {
         const timeDiff = now - lastFetchRef.current.time;
         const optionsChanged = optionsKey !== lastFetchRef.current.options;
 
-        // If moved very little and radius is same, and options same, skip
-        if (dist < threshold && radiusDiff < 10 && !optionsChanged) {
-          return;
-        }
-
-        // Rate limit: Don't fetch more than once every 3 seconds
-        if (timeDiff < 3000 && !optionsChanged) {
-          return;
-        }
+        if (dist < threshold && radiusDiff < 10 && !optionsChanged) return;
+        if (timeDiff < 3000 && !optionsChanged) return;
       }
 
       handleFetchMapData(fetchRadius);
-    }, 1000); // 1s debounce
+    }, 1000);
 
     return () => clearTimeout(timer);
-  }, [showParking, showPublicAreas, startPos, fetchRadius, radius]);
+  }, [showPublicAreas, startPos, fetchRadius, radius]);
 
   useEffect(() => {
-    if (error && error.includes("rate limit")) {
+    if (error?.includes("rate limit")) {
       const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
 
   const handleFetchMapData = async (currentRadius: number) => {
-    const optionsKey = `${showParking}-${showPublicAreas}`;
+    const optionsKey = `${showPublicAreas}`;
     const cacheKey = `${startPos[0].toFixed(4)},${startPos[1].toFixed(4)},${currentRadius},${optionsKey}`;
     const now = Date.now();
 
     if (mapDataCache.current[cacheKey]) {
       const cached = mapDataCache.current[cacheKey];
-      setParkingSpots(cached.parkingSpots);
       setPublicAreas(cached.publicAreas);
       lastFetchRef.current = { pos: startPos, radius: currentRadius, time: now, options: optionsKey };
       return;
     }
 
-    setLoadingMapData(true);
+    setLoadingPublicAreas(true);
 
     if (mapDataAbortControllerRef.current) {
       mapDataAbortControllerRef.current.abort();
@@ -220,31 +211,61 @@ export default function App() {
         startPos[0],
         startPos[1],
         currentRadius,
-        { parking: showParking, publicAreas: showPublicAreas },
+        { parking: false, publicAreas: showPublicAreas },
         controller.signal
       );
 
-      setParkingSpots(result.parkingSpots);
       setPublicAreas(result.publicAreas);
       mapDataCache.current[cacheKey] = result;
       lastFetchRef.current = { pos: startPos, radius: currentRadius, time: now, options: optionsKey };
     } catch (err) {
-      // Only return if the user aborted the request
       if (err instanceof Error && err.name === 'AbortError' && controller.signal.aborted) return;
-
       console.error("Map data fetch error:", err);
-
-      // Fatal error: deactivate toggles and show message
-      setShowParking(false);
       setShowPublicAreas(false);
       setError("The data servers are currently overloaded. Please try again in a few moments.");
-
-      // Clear error after 5 seconds
       setTimeout(() => setError(null), 5000);
     } finally {
-      setLoadingMapData(false);
+      setLoadingPublicAreas(false);
     }
   };
+
+  // Fetch parking spots near the attractor
+  useEffect(() => {
+    if (!showParking || !attractor) {
+      setParkingSpots([]);
+      return;
+    }
+
+    const fetchParking = async () => {
+      setLoadingParking(true);
+      try {
+        const result = await fetchMapData(
+          attractor.lat,
+          attractor.lon,
+          1000, // Look within 1km of the attractor for parking spots
+          { parking: true, publicAreas: false }
+        );
+
+        // Calculate distance from attractor to each parking spot
+        const withDistance = result.parkingSpots.map(spot => ({
+          ...spot,
+          distance: getDistance([attractor.lat, attractor.lon], [spot.lat, spot.lon])
+        }));
+
+        // Sort by distance and take top 3
+        withDistance.sort((a, b) => a.distance - b.distance);
+        setParkingSpots(withDistance.slice(0, 3));
+      } catch (err) {
+        console.error("Error fetching parking spots near attractor:", err);
+        setError("Failed to load parking spots. Please try again.");
+        setTimeout(() => setError(null), 5000);
+      } finally {
+        setLoadingParking(false);
+      }
+    };
+
+    fetchParking();
+  }, [showParking, attractor]);
 
   const handleGetCurrentLocation = () => {
     if ("geolocation" in navigator) {
@@ -279,8 +300,8 @@ export default function App() {
   };
 
   const handleMapClick = (lat: number, lon: number) => {
+    if (attractor) return;
     setStartPos([lat, lon]);
-    setAttractor(null);
   };
 
   return (
@@ -295,7 +316,7 @@ export default function App() {
         </div>
         <button
           onClick={() => setShowInfo(!showInfo)}
-          className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white pointer-events-auto border border-white/10"
+          className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white pointer-events-auto border border-white/10 cursor-pointer"
         >
           <Info className="w-5 h-5" />
         </button>
@@ -384,25 +405,10 @@ export default function App() {
         <div className="absolute right-4 top-24 z-[1000] flex flex-col gap-3">
           <button
             onClick={handleGetCurrentLocation}
-            className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/10 shadow-lg active:scale-95 transition-transform"
+            className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/10 shadow-lg active:scale-95 transition-transform cursor-pointer"
             title="My position"
           >
             <LocateFixed className="w-6 h-6" />
-          </button>
-
-          <button
-            onClick={() => setShowParking(!showParking)}
-            className={`w-12 h-12 backdrop-blur-md rounded-full flex items-center justify-center border shadow-lg active:scale-95 transition-all cursor-pointer ${showParking
-              ? 'bg-blue-600 text-white border-blue-400'
-              : 'bg-white/10 text-white border-white/10'
-              }`}
-            title="Show parking"
-          >
-            {loadingMapData && showParking ? (
-              <RefreshCw className="w-6 h-6 animate-spin" />
-            ) : (
-              <Car className="w-6 h-6" />
-            )}
           </button>
 
           <button
@@ -413,10 +419,25 @@ export default function App() {
               }`}
             title="Show public areas"
           >
-            {loadingMapData && showPublicAreas ? (
+            {loadingPublicAreas && showPublicAreas ? (
               <RefreshCw className="w-6 h-6 animate-spin" />
             ) : (
               <Trees className="w-6 h-6" />
+            )}
+          </button>
+
+          <button
+            onClick={() => setShowParking(!showParking)}
+            className={`w-12 h-12 backdrop-blur-md rounded-full flex items-center justify-center border shadow-lg active:scale-95 transition-all cursor-pointer ${showParking
+              ? 'bg-blue-600 text-white border-blue-400'
+              : 'bg-white/10 text-white border-white/10'
+              }`}
+            title="Show nearby parking"
+          >
+            {loadingParking && showParking ? (
+              <RefreshCw className="w-6 h-6 animate-spin" />
+            ) : (
+              <Car className="w-6 h-6" />
             )}
           </button>
         </div>
@@ -447,7 +468,7 @@ export default function App() {
                     </div>
                     <button
                       onClick={() => setAttractor(null)}
-                      className="w-6 h-6 flex items-center justify-center bg-black/20 hover:bg-black/40 rounded-full text-zinc-400 hover:text-white transition-colors border border-white/5"
+                      className="w-6 h-6 flex items-center justify-center bg-black/20 hover:bg-black/40 rounded-full text-zinc-400 hover:text-white transition-colors border border-white/5 cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -482,7 +503,7 @@ export default function App() {
             <button
               onClick={handleGenerate}
               disabled={loading}
-              className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${loading
+              className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all cursor-pointer ${loading
                 ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                 : 'bg-white text-black hover:bg-zinc-200 active:scale-[0.98]'
                 }`}
@@ -554,7 +575,7 @@ export default function App() {
                 </a>
                 <button
                   onClick={() => setShowInfo(false)}
-                  className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors"
+                  className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors cursor-pointer"
                 >
                   Close
                 </button>

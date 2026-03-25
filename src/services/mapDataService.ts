@@ -141,10 +141,10 @@ export async function fetchMapData(
 
         return { parkingSpots, publicAreas };
 
-      } catch (fetchErr) {
+      } catch (error_) {
         if (signal) signal.removeEventListener('abort', onAbort);
         clearTimeout(timeoutId);
-        throw fetchErr;
+        throw error_;
       }
     } catch (err) {
       if ((err as Error).name === 'AbortError' && signal?.aborted) throw err;
