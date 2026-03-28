@@ -11,15 +11,16 @@ By leveraging your device's native Cryptographically Secure Random Number Genera
 **Features:**
 - Set your starting location via GPS or by clicking on the map.
 - Choose a search radius between 500m and 5km.
+- Select an Intention to tune the quantum generation strategy (9 modes available).
 - Generate unpredictable true-random destination points.
 - Toggle the display of parks, forests, and other public areas within your search radius.
-- Automatically identify the 3 closest parking spots to your generated attractor.
-- Open the coordinates directly in Google Maps. 
+- Automatically identify the 3 closest parking spots to your generated destination.
+- Open the coordinates directly in Google Maps.
 
 Built with React, Leaflet, and Tailwind CSS.
 
 
-## 🧠 About the Theory
+## About the Theory
 
 OpenRando is inspired by the **Fatum Project**, a research initiative exploring "probability blind-spots" (places in the physical world that fall outside our daily deterministic routines). Read more about the theory [here](https://github.com/anonyhoney/fatum-en/blob/master/docs/fatum_theory.txt).
 
@@ -28,7 +29,7 @@ OpenRando is inspired by the **Fatum Project**, a research initiative exploring 
 - **Reality-Tunnels**: The mental and causal loops that limit our perspective and actions.
 - **Blind-Spots**: Locations nearby that you would never visit because no logic or habit would ever lead you there.
 
-### 🛠️ Hardware Entropy vs. QRNG
+### Hardware Entropy vs. QRNG
 
 While the original Fatum project often relies on external Quantum Random Number Generator (QRNG) servers (like ANU), OpenRando is designed for privacy, speed, and independence.
 
@@ -36,10 +37,5 @@ Instead of polling remote APIs, this application utilizes your device's native C
 
 This ensures that your exploration remains entirely local and private, while still providing the level of unpredictability needed to "break" deterministic outcomes.
 
-
 ## 🤝 Contributing 
 OpenRando is an open-source project and contributions are more than welcome! Whether you want to fix a bug or suggest a feature, feel free to open an Issue or submit a Pull Request.
-
-
-## 📝 License 
-OpenRando is licensed under the MIT License.

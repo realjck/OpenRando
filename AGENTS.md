@@ -4,10 +4,11 @@
 
 - An open-source, web-based alternative to Randonautica that generates unique random real-world coordinates for exploration
 - The user sets a starting point (via GPS or map click) and a search radius (500m to 5km)
-- The app generates an "attractor" point: the area of highest random-point density within the radius
-- Attractor coordinates can be opened directly in Google Maps
+- The user selects an Intention (one of 9 quantum generation strategies) before generating
+- The app generates a destination point based on Kernel Density Estimation applied to CSPRNG random points
+- Destination coordinates can be opened directly in Google Maps
 - Optional overlay: parks, forests, and other public areas within the radius (polygon display)
-- Optional overlay: the 3 closest parking spots to the generated attractor (marker display)
+- Optional overlay: the 3 closest parking spots to the generated destination (marker display)
 - The app runs entirely client-side, no backend, no user accounts, no persistence
 
 ## Technical Details
@@ -38,10 +39,25 @@ vite.config.ts          # Vite config (base path, plugins, HMR)
 ## Core Algorithms
 
 ### Attractor Calculation (`quantumService.ts`)
-1. Generate 512 random GPS points within the radius using the browser's native CSPRNG (`crypto.getRandomValues`)
-2. Convert raw `Uint16Array` integers (0–65535) to polar coordinates (random radius + angle)
-3. Apply Silverman bandwidth estimation (KDE) over a 100×100 grid
-4. Return the grid cell with the highest Gaussian kernel density as the attractor
+1. Resolve the active `IntentionType` to its `IntentionConfig` (point count + KDE selector)
+2. Generate N random GPS points within the radius using the browser's native CSPRNG (`crypto.getRandomValues`), where N varies per intention (256–1024)
+3. Convert raw `Uint16Array` integers (0–65535) to polar coordinates (random radius + angle)
+4. Apply Silverman bandwidth estimation (KDE) over a 100×100 grid
+5. Select the result cell based on the intention's `kdeSelector`: `'max'` (highest density), `'min'` (lowest density), or a percentile fraction (0–1)
+
+#### Intention Configs
+
+| Intention | Point Count | KDE Selector |
+|---|---|---|
+| `explore` | 512 | 50th percentile |
+| `routine` | 256 | 75th percentile |
+| `synchronicity` | 1024 | max |
+| `anomaly` | 512 | 85th percentile |
+| `attractor` | 1024 | max |
+| `repeller` | 512 | min |
+| `planeshifting` | 256 | 25th percentile |
+| `trial` | 512 | 90th percentile |
+| `quest` | 768 | 60th percentile |
 
 ### Map Data (`mapDataService.ts`)
 - Queries the Overpass API (with fallback across 4 mirror instances) for:
@@ -57,6 +73,23 @@ vite.config.ts          # Vite config (base path, plugins, HMR)
 - Blue `#3b82f6` (blue-500): parking spots markers and toggle button
 - Green `#22c55e` (green-500): public area polygons and toggle button
 - Map tile: CartoDB dark_all
+
+### Intention Colors
+Each intention has its own accent color used in the capsule button and modal:
+
+| Intention | Color |
+|---|---|
+| Explore the Unknown | `#6366f1` (indigo) |
+| Break the Routine | `#f97316` (orange) |
+| Synchronicity | `#a855f7` (purple) |
+| The Anomaly | `#14b8a6` (teal) |
+| Attractor | `#8b5cf6` (violet) |
+| Repeller | `#ef4444` (red) |
+| Planeshifting | `#22d3ee` (cyan) |
+| The Trial | `#f59e0b` (amber) |
+| The Quest | `#84cc16` (lime) |
+
+The intention selector is a compact capsule button in the control panel. Clicking it opens a bottom-sheet modal with a list of intentions, each with an icon, name, and an info button that shows a floating viewport-aware tooltip.
 
 ## Coding Standards
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useRef } from 'react';
+import { useState, useEffect, memo, useRef, type ComponentType, type CSSProperties } from 'react';
 import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents, Popup, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import {
@@ -6,15 +6,23 @@ import {
   Compass,
   ExternalLink,
   RefreshCw,
-  Settings2,
   LocateFixed,
   Info,
   X,
   Car,
-  Trees
+  Trees,
+  Sparkles,
+  ScanEye,
+  MapPinPlus,
+  CircleOff,
+  Globe,
+  ShieldAlert,
+  GitBranch,
+  RefreshCcwDot,
+  ChevronDown,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchQuantumNumbers, calculateAttractor, AttractorResult } from './services/quantumService';
+import { fetchQuantumNumbers, calculateAttractor, AttractorResult, IntentionType } from './services/quantumService';
 import { fetchMapData, ParkingPoint, PublicArea } from './services/mapDataService';
 
 // Fix Leaflet marker icon issues
@@ -60,6 +68,81 @@ const GithubIcon = ({ className }: { className?: string }) => (
     <path d="M9 18c-4.51 2-5-2-7-2" />
   </svg>
 );
+
+// --- Intentions ---
+type IntentionMeta = {
+  id: IntentionType;
+  name: string;
+  Icon: ComponentType<{ className?: string; style?: CSSProperties }>;
+  color: string;
+  description: string;
+};
+
+const INTENTIONS: IntentionMeta[] = [
+  {
+    id: 'explore',
+    name: 'Explore the Unknown',
+    Icon: Compass,
+    color: '#6366f1',
+    description: 'Represents venturing into uncharted territory, outside probability tunnels.',
+  },
+  {
+    id: 'routine',
+    name: 'Break the Routine',
+    Icon: RefreshCcwDot,
+    color: '#f97316',
+    description: 'Symbolizes disruption of the deterministic flow and introducing change.',
+  },
+  {
+    id: 'synchronicity',
+    name: 'Synchronicity',
+    Icon: Sparkles,
+    color: '#a855f7',
+    description: 'Reflects the noosphere / Genesis Field concept, mind influencing randomness.',
+  },
+  {
+    id: 'anomaly',
+    name: 'The Anomaly',
+    Icon: ScanEye,
+    color: '#14b8a6',
+    description: 'Focuses on heightened perception to notice coincidences and void-meme signals.',
+  },
+  {
+    id: 'attractor',
+    name: 'Attractor',
+    Icon: MapPinPlus,
+    color: '#8b5cf6',
+    description: 'Points to dense clusters of random points, a magnetic spot of probability.',
+  },
+  {
+    id: 'repeller',
+    name: 'Repeller',
+    Icon: CircleOff,
+    color: '#ef4444',
+    description: 'Represents areas avoided by randomness, the blind spots of the Genesis Field.',
+  },
+  {
+    id: 'planeshifting',
+    name: 'Planeshifting',
+    Icon: Globe,
+    color: '#22d3ee',
+    description: 'Suggests moving between reality tunnels and parallel timelines.',
+  },
+  {
+    id: 'trial',
+    name: 'The Trial',
+    Icon: ShieldAlert,
+    color: '#f59e0b',
+    description: 'Aligns with the Despair meme, confronting memetic danger and stasis field pressure.',
+  },
+  {
+    id: 'quest',
+    name: 'The Quest',
+    Icon: GitBranch,
+    color: '#84cc16',
+    description: 'Represents a chain of points, creating an unusual route rather than a single destination.',
+  },
+];
 
 // Component to handle map center updates
 function MapController({ center }: { center: [number, number] }) {
@@ -112,6 +195,9 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showInfo, setShowInfo] = useState(false);
+  const [selectedIntention, setSelectedIntention] = useState<IntentionType>('attractor');
+  const [showIntentionModal, setShowIntentionModal] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState<{ id: IntentionType; top: number; right: number } | null>(null);
 
   // Map data state (Parking & Public Areas)
   const [showParking, setShowParking] = useState(false);
@@ -289,8 +375,8 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const quantumNumbers = await fetchQuantumNumbers();
-      const result = calculateAttractor(startPos[0], startPos[1], radius, quantumNumbers);
+      const quantumNumbers = await fetchQuantumNumbers(2048);
+      const result = calculateAttractor(startPos[0], startPos[1], radius, quantumNumbers, selectedIntention);
       setAttractor(result);
     } catch (err) {
       console.error("Generation error:", err);
@@ -304,6 +390,8 @@ export default function App() {
     if (attractor) return;
     setStartPos([lat, lon]);
   };
+
+  const currentIntention = INTENTIONS.find(i => i.id === selectedIntention)!;
 
   return (
     <div className="relative h-[100dvh] w-screen flex flex-col bg-black overflow-hidden">
@@ -492,10 +580,23 @@ export default function App() {
 
           <div className="bg-zinc-900/90 backdrop-blur-xl p-5 rounded-3xl border border-white/10 shadow-2xl pointer-events-auto">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-zinc-400" />
-                <span className="text-sm font-medium text-zinc-300">Search radius</span>
-              </div>
+              <button
+                onClick={() => setShowIntentionModal(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all cursor-pointer hover:opacity-80 active:scale-95"
+                style={{
+                  backgroundColor: `${currentIntention.color}22`,
+                  borderColor: `${currentIntention.color}55`,
+                }}
+              >
+                <currentIntention.Icon
+                  className="w-4 h-4 shrink-0"
+                  style={{ color: currentIntention.color }}
+                />
+                <span className="text-sm font-medium truncate max-w-[140px]" style={{ color: currentIntention.color }}>
+                  {currentIntention.name}
+                </span>
+                <ChevronDown className="w-3 h-3 shrink-0" style={{ color: currentIntention.color }} />
+              </button>
               <span className="text-sm font-bold text-purple-400">{radius}m</span>
             </div>
 
@@ -517,7 +618,7 @@ export default function App() {
               ) : (
                 <>
                   <RefreshCw className="w-6 h-6" />
-                  Generate Attractor
+                  Generate Destination
                 </>
               )}
             </button>
@@ -528,6 +629,141 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Intention Selection Modal */}
+      <AnimatePresence>
+        {showIntentionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[2000] bg-black/80 backdrop-blur-md flex items-end justify-center p-4 pb-6"
+            onClick={() => { setShowIntentionModal(false); setActiveTooltip(null); }}
+          >
+            {/* Floating tooltip — rendered inside backdrop to escape overflow:hidden of modal card */}
+            <AnimatePresence>
+              {activeTooltip && (() => {
+                const tip = INTENTIONS.find(i => i.id === activeTooltip.id)!;
+                return (
+                  <motion.div
+                    key={activeTooltip.id}
+                    initial={{ opacity: 0, scale: 0.92, x: 6 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.92, x: 6 }}
+                    transition={{ duration: 0.15 }}
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      position: 'fixed',
+                      top: activeTooltip.top,
+                      right: activeTooltip.right,
+                      zIndex: 3000,
+                      maxWidth: '220px',
+                      maxHeight: `${window.innerHeight - 28}px`,
+                      overflowY: 'auto',
+                      backgroundColor: '#1c1c1f',
+                      border: `1px solid ${tip.color}35`,
+                      borderLeft: `3px solid ${tip.color}`,
+                      borderRadius: '12px',
+                      padding: '10px 14px',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+                    }}
+                  >
+                    <p className="text-xs text-zinc-200 leading-relaxed">
+                      {tip.description}
+                    </p>
+                  </motion.div>
+                );
+              })()}
+            </AnimatePresence>
+            <motion.div
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                <h2 className="text-base font-bold text-white">Choose your Intention</h2>
+                <button
+                  onClick={() => setShowIntentionModal(false)}
+                  className="w-7 h-7 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="overflow-y-auto max-h-[60vh] p-2 space-y-0.5 scrollbar-dark">
+                {INTENTIONS.map(intention => {
+                  const isSelected = selectedIntention === intention.id;
+                  const isActive = activeTooltip?.id === intention.id;
+                  const { Icon } = intention;
+                  return (
+                    <div key={intention.id} className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        className={`flex-1 text-left flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${isSelected ? 'bg-white/10 border border-white/15' : 'hover:bg-white/5 border border-transparent'
+                          }`}
+                        onClick={() => {
+                          setSelectedIntention(intention.id);
+                          setShowIntentionModal(false);
+                          setActiveTooltip(null);
+                        }}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                          style={{
+                            backgroundColor: `${intention.color}20`,
+                            border: `1px solid ${intention.color}40`,
+                          }}
+                        >
+                          <Icon className="w-4 h-4" style={{ color: intention.color }} />
+                        </div>
+                        <span className={`flex-1 text-sm font-medium ${isSelected ? 'text-white' : 'text-zinc-300'
+                          }`}>
+                          {intention.name}
+                        </span>
+                        {isSelected && (
+                          <div
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: intention.color }}
+                          />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (activeTooltip?.id === intention.id) {
+                            setActiveTooltip(null);
+                          } else {
+                            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                            const TOOLTIP_H = 110;
+                            const MARGIN = 14;
+                            const idealTop = rect.top + rect.height / 2 - TOOLTIP_H / 2;
+                            const clampedTop = Math.min(
+                              Math.max(idealTop, MARGIN),
+                              window.innerHeight - TOOLTIP_H - MARGIN
+                            );
+                            setActiveTooltip({
+                              id: intention.id,
+                              top: clampedTop,
+                              right: window.innerWidth - rect.left + 8,
+                            });
+                          }
+                        }}
+                        className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors cursor-pointer shrink-0 ${isActive ? 'bg-white/15 text-zinc-200' : 'hover:bg-white/10 text-zinc-500 hover:text-zinc-300'
+                          }`}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Info Modal */}
       <AnimatePresence>
