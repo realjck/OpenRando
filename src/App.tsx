@@ -25,6 +25,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { fetchQuantumNumbers, calculateAttractor, AttractorResult, IntentionType } from './services/quantumService';
 import { fetchMapData, ParkingPoint } from './services/mapDataService';
 
+declare const __APP_VERSION__: string;
+
 // Fix Leaflet marker icon issues
 const startIcon = L.divIcon({
   html: `<div class="w-6 h-6 bg-blue-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
@@ -716,7 +718,10 @@ export default function App() {
               className="bg-zinc-900 border border-white/10 p-6 rounded-3xl max-w-sm w-full"
               onClick={e => e.stopPropagation()}
             >
-              <h2 className="text-2xl font-bold text-white mb-4">About OpenRando</h2>
+              <div className="flex items-baseline justify-between mb-4">
+                <h2 className="text-2xl font-bold text-white">About OpenRando</h2>
+                <span className="text-xs text-zinc-500">v{__APP_VERSION__}</span>
+              </div>
               <div className="space-y-4 text-zinc-400 text-sm leading-relaxed">
                 <p>
                   OpenRando uses your device's native Cryptographically Secure Random Number Generator to create unique destination points.
