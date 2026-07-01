@@ -214,7 +214,7 @@ function ModeSwitch({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void 
         aria-checked={mode === 'car'}
         aria-label="Travel mode"
         onClick={() => setMode(mode === 'walk' ? 'car' : 'walk')}
-        className="relative w-12 h-6 rounded-full bg-zinc-700 border border-white/10 cursor-pointer transition-colors"
+        className="relative w-12 h-6 rounded-full bg-zinc-800 border border-white/10 cursor-pointer transition-colors"
       >
         <span
           className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform"
