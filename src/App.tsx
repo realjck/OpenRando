@@ -1,5 +1,5 @@
 import { useState, useEffect, memo, useRef, type ComponentType, type CSSProperties } from 'react';
-import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents, Popup, Polygon } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import {
   Navigation,
@@ -11,7 +11,6 @@ import {
   X,
   Car,
   SquareParking,
-  Trees,
   Sparkles,
   ScanEye,
   MapPinPlus,
@@ -24,7 +23,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { fetchQuantumNumbers, calculateAttractor, AttractorResult, IntentionType } from './services/quantumService';
-import { fetchMapData, ParkingPoint, PublicArea } from './services/mapDataService';
+import { fetchMapData, ParkingPoint } from './services/mapDataService';
 
 // Fix Leaflet marker icon issues
 const startIcon = L.divIcon({
@@ -228,12 +227,10 @@ function ModeSwitch({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void 
 
 const RadiusSlider = memo(function RadiusSlider({
   radius,
-  setRadius,
-  setFetchRadius
+  setRadius
 }: {
   radius: number,
-  setRadius: (val: number) => void,
-  setFetchRadius: (val: number) => void
+  setRadius: (val: number) => void
 }) {
   return (
     <input
@@ -243,8 +240,6 @@ const RadiusSlider = memo(function RadiusSlider({
       step="100"
       value={radius}
       onChange={(e) => setRadius(Number.parseInt(e.target.value))}
-      onMouseUp={() => setFetchRadius(radius)}
-      onTouchEnd={() => setFetchRadius(radius)}
       className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500 mb-6"
     />
   );
@@ -254,7 +249,6 @@ export default function App() {
   const [startPos, setStartPos] = useState<[number, number]>([48.8566, 2.3522]); // Default Paris
   const [mode, setMode] = useState<Mode>('walk');
   const [radius, setRadius] = useState(1000); // Base (pedestrian) radius; car mode multiplies it
-  const [fetchRadius, setFetchRadius] = useState(1000);
   const [attractor, setAttractor] = useState<AttractorResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -263,18 +257,10 @@ export default function App() {
   const [showIntentionModal, setShowIntentionModal] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<{ id: IntentionType; top: number; right: number } | null>(null);
 
-  // Map data state (Parking & Public Areas)
+  // Parking state
   const [showParking, setShowParking] = useState(false);
-  const [showPublicAreas, setShowPublicAreas] = useState(false);
   const [parkingSpots, setParkingSpots] = useState<ParkingPoint[]>([]);
-  const [publicAreas, setPublicAreas] = useState<PublicArea[]>([]);
   const [loadingParking, setLoadingParking] = useState(false);
-  const [loadingPublicAreas, setLoadingPublicAreas] = useState(false);
-
-  // Cache and tracking for optimization
-  const lastFetchRef = useRef<{ pos: [number, number], radius: number, time: number, options: string } | null>(null);
-  const mapDataCache = useRef<Record<string, { parkingSpots: ParkingPoint[], publicAreas: PublicArea[] }>>({});
-  const mapDataAbortControllerRef = useRef<AbortController | null>(null);
 
   const multiplier = MODE_MULTIPLIER[mode];
   const actualRadius = radius * multiplier; // Real radius in meters used for map, generation and display
@@ -298,91 +284,12 @@ export default function App() {
     return R * c;
   };
 
-  // Debounced fetch for public areas
-  useEffect(() => {
-    if (!showPublicAreas) {
-      setPublicAreas([]);
-      // Only abort public areas controller
-      if (mapDataAbortControllerRef.current) {
-        mapDataAbortControllerRef.current.abort();
-        mapDataAbortControllerRef.current = null;
-      }
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      // Optimization: Only fetch if moved significantly or radius changed
-      const threshold = Math.min(radius * 0.1, 50);
-      const now = Date.now();
-      const optionsKey = `${showPublicAreas}`;
-
-      if (lastFetchRef.current) {
-        const dist = getDistance(startPos, lastFetchRef.current.pos);
-        const radiusDiff = Math.abs(fetchRadius - lastFetchRef.current.radius);
-        const timeDiff = now - lastFetchRef.current.time;
-        const optionsChanged = optionsKey !== lastFetchRef.current.options;
-
-        // Only skip if we have data AND nothing significant changed
-        if (dist < threshold && radiusDiff < 10 && !optionsChanged && publicAreas.length > 0) return;
-        if (timeDiff < 3000 && !optionsChanged && publicAreas.length > 0) return;
-      }
-
-      handleFetchMapData(fetchRadius);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [showPublicAreas, startPos, fetchRadius, radius, mode, publicAreas.length]);
-
   useEffect(() => {
     if (error?.includes("rate limit")) {
       const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
-
-  const handleFetchMapData = async (currentRadius: number) => {
-    const actual = currentRadius * multiplier;
-    const optionsKey = `${showPublicAreas}-${mode}`;
-    const cacheKey = `${startPos[0].toFixed(4)},${startPos[1].toFixed(4)},${actual},${optionsKey}`;
-    const now = Date.now();
-
-    if (mapDataCache.current[cacheKey]) {
-      const cached = mapDataCache.current[cacheKey];
-      setPublicAreas(cached.publicAreas);
-      lastFetchRef.current = { pos: startPos, radius: currentRadius, time: now, options: optionsKey };
-      return;
-    }
-
-    setLoadingPublicAreas(true);
-
-    if (mapDataAbortControllerRef.current) {
-      mapDataAbortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    mapDataAbortControllerRef.current = controller;
-
-    try {
-      const result = await fetchMapData(
-        startPos[0],
-        startPos[1],
-        actual,
-        { parking: false, publicAreas: showPublicAreas },
-        controller.signal
-      );
-
-      setPublicAreas(result.publicAreas);
-      mapDataCache.current[cacheKey] = result;
-      lastFetchRef.current = { pos: startPos, radius: currentRadius, time: now, options: optionsKey };
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError' && controller.signal.aborted) return;
-      console.error("Map data fetch error:", err);
-      setShowPublicAreas(false);
-      setError("The data servers are currently overloaded. Please try again in a few moments.");
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setLoadingPublicAreas(false);
-    }
-  };
 
   // Fetch parking spots near the attractor
   useEffect(() => {
@@ -394,15 +301,14 @@ export default function App() {
     const fetchParking = async () => {
       setLoadingParking(true);
       try {
-        const result = await fetchMapData(
+        const spots = await fetchMapData(
           attractor.lat,
           attractor.lon,
-          1000, // Look within 1km of the attractor for parking spots
-          { parking: true, publicAreas: false }
+          1000 // Look within 1km of the attractor for parking spots
         );
 
         // Calculate distance from attractor to each parking spot
-        const withDistance = result.parkingSpots.map(spot => ({
+        const withDistance = spots.map(spot => ({
           ...spot,
           distance: getDistance([attractor.lat, attractor.lon], [spot.lat, spot.lon])
         }));
@@ -528,36 +434,6 @@ export default function App() {
               </Popup>
             </Marker>
           ))}
-
-          {showPublicAreas && publicAreas.map(area => (
-            <Polygon
-              key={area.id}
-              positions={area.coordinates}
-              pathOptions={{
-                color: '#22c55e',
-                weight: 1,
-                fillColor: '#22c55e',
-                fillOpacity: 0.25
-              }}
-            >
-              <Popup>
-                <div className="p-1">
-                  <div className="text-black font-bold">{area.name || "Public Space"}</div>
-                  <div className="text-[10px] text-zinc-500 mb-2">{area.tags.leisure || area.tags.landuse || "Area"}</div>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${area.coordinates[0][0]},${area.coordinates[0][1]}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 !text-white text-[10px] font-bold py-1.5 px-3 rounded-lg transition-colors no-underline"
-                  >
-                    <Navigation className="w-3 h-3 text-white" />
-                    <span className="text-white">Maps</span>
-                    <ExternalLink className="w-2.5 h-2.5 text-white" />
-                  </a>
-                </div>
-              </Popup>
-            </Polygon>
-          ))}
         </MapContainer>
 
         {/* Floating Action Buttons */}
@@ -568,21 +444,6 @@ export default function App() {
             title="My position"
           >
             <LocateFixed className="w-6 h-6" />
-          </button>
-
-          <button
-            onClick={() => setShowPublicAreas(!showPublicAreas)}
-            className={`w-12 h-12 backdrop-blur-md rounded-full flex items-center justify-center border shadow-lg active:scale-95 transition-all cursor-pointer ${showPublicAreas
-              ? 'bg-green-600 text-white border-green-400'
-              : 'bg-white/10 text-white border-white/10'
-              }`}
-            title="Show public areas"
-          >
-            {loadingPublicAreas && showPublicAreas ? (
-              <RefreshCw className="w-6 h-6 animate-spin" />
-            ) : (
-              <Trees className="w-6 h-6" />
-            )}
           </button>
 
           <button
@@ -673,7 +534,7 @@ export default function App() {
               </span>
             </div>
 
-            <RadiusSlider radius={radius} setRadius={setRadius} setFetchRadius={setFetchRadius} />
+            <RadiusSlider radius={radius} setRadius={setRadius} />
 
             <button
               onClick={handleGenerate}
