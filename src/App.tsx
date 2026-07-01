@@ -10,6 +10,7 @@ import {
   Info,
   X,
   Car,
+  SquareParking,
   Trees,
   Sparkles,
   ScanEye,
@@ -66,6 +67,18 @@ const GithubIcon = ({ className }: { className?: string }) => (
   >
     <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
     <path d="M9 18c-4.51 2-5-2-7-2" />
+  </svg>
+);
+
+const WalkingIcon = ({ className, style }: { className?: string; style?: CSSProperties }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    style={style}
+  >
+    <path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7" />
   </svg>
 );
 
@@ -163,6 +176,56 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lon: number
   return null;
 }
 
+type Mode = 'walk' | 'car';
+
+// Travel mode multiplier: driving covers 10x the pedestrian radius
+const MODE_MULTIPLIER: Record<Mode, number> = { walk: 1, car: 10 };
+
+// Adjust zoom so the radius circle keeps the same visible size when the mode
+// switches (radius x10 in car mode). Each zoom level doubles scale, so a x10
+// area change is log2(10) zoom levels.
+const ZOOM_STEP = Math.log2(10);
+
+function ZoomController({ mode, center }: { mode: Mode; center: [number, number] }) {
+  const map = useMap();
+  const prevMode = useRef(mode);
+  useEffect(() => {
+    if (prevMode.current === mode) return;
+    prevMode.current = mode;
+    if (mode === 'car') {
+      map.setZoom(map.getZoom() - ZOOM_STEP);
+    } else {
+      // Zooming back in: recenter on the circle so it stays framed
+      map.setView(center, map.getZoom() + ZOOM_STEP);
+    }
+  }, [mode, center, map]);
+  return null;
+}
+
+// Left/right toggle switch between pedestrian and car travel modes
+function ModeSwitch({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
+  const accent = '#8b5cf6';
+  return (
+    <div className="flex items-center gap-2.5">
+      <WalkingIcon className="w-5 h-5 transition-colors" style={{ color: mode === 'walk' ? accent : '#ffffff' }} />
+      <button
+        type="button"
+        role="switch"
+        aria-checked={mode === 'car'}
+        aria-label="Travel mode"
+        onClick={() => setMode(mode === 'walk' ? 'car' : 'walk')}
+        className="relative w-12 h-6 rounded-full bg-zinc-700 border border-white/10 cursor-pointer transition-colors"
+      >
+        <span
+          className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform"
+          style={{ transform: mode === 'car' ? 'translateX(24px)' : 'translateX(0)' }}
+        />
+      </button>
+      <Car className="w-5 h-5 transition-colors" style={{ color: mode === 'car' ? accent : '#ffffff' }} />
+    </div>
+  );
+}
+
 const RadiusSlider = memo(function RadiusSlider({
   radius,
   setRadius,
@@ -189,7 +252,8 @@ const RadiusSlider = memo(function RadiusSlider({
 
 export default function App() {
   const [startPos, setStartPos] = useState<[number, number]>([48.8566, 2.3522]); // Default Paris
-  const [radius, setRadius] = useState(1000);
+  const [mode, setMode] = useState<Mode>('walk');
+  const [radius, setRadius] = useState(1000); // Base (pedestrian) radius; car mode multiplies it
   const [fetchRadius, setFetchRadius] = useState(1000);
   const [attractor, setAttractor] = useState<AttractorResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -211,6 +275,9 @@ export default function App() {
   const lastFetchRef = useRef<{ pos: [number, number], radius: number, time: number, options: string } | null>(null);
   const mapDataCache = useRef<Record<string, { parkingSpots: ParkingPoint[], publicAreas: PublicArea[] }>>({});
   const mapDataAbortControllerRef = useRef<AbortController | null>(null);
+
+  const multiplier = MODE_MULTIPLIER[mode];
+  const actualRadius = radius * multiplier; // Real radius in meters used for map, generation and display
 
   // Get user location on mount
   useEffect(() => {
@@ -264,7 +331,7 @@ export default function App() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [showPublicAreas, startPos, fetchRadius, radius, publicAreas.length]);
+  }, [showPublicAreas, startPos, fetchRadius, radius, mode, publicAreas.length]);
 
   useEffect(() => {
     if (error?.includes("rate limit")) {
@@ -274,8 +341,9 @@ export default function App() {
   }, [error]);
 
   const handleFetchMapData = async (currentRadius: number) => {
-    const optionsKey = `${showPublicAreas}`;
-    const cacheKey = `${startPos[0].toFixed(4)},${startPos[1].toFixed(4)},${currentRadius},${optionsKey}`;
+    const actual = currentRadius * multiplier;
+    const optionsKey = `${showPublicAreas}-${mode}`;
+    const cacheKey = `${startPos[0].toFixed(4)},${startPos[1].toFixed(4)},${actual},${optionsKey}`;
     const now = Date.now();
 
     if (mapDataCache.current[cacheKey]) {
@@ -297,7 +365,7 @@ export default function App() {
       const result = await fetchMapData(
         startPos[0],
         startPos[1],
-        currentRadius,
+        actual,
         { parking: false, publicAreas: showPublicAreas },
         controller.signal
       );
@@ -376,7 +444,7 @@ export default function App() {
     setError(null);
     try {
       const quantumNumbers = await fetchQuantumNumbers(2048);
-      const result = calculateAttractor(startPos[0], startPos[1], radius, quantumNumbers, selectedIntention);
+      const result = calculateAttractor(startPos[0], startPos[1], actualRadius, quantumNumbers, selectedIntention);
       setAttractor(result);
     } catch (err) {
       console.error("Generation error:", err);
@@ -416,6 +484,7 @@ export default function App() {
         <MapContainer
           center={startPos}
           zoom={14}
+          zoomSnap={0}
           style={{ height: '100%', width: '100%' }}
           zoomControl={false}
           attributionControl={true}
@@ -425,13 +494,14 @@ export default function App() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           />
           <MapController center={startPos} />
+          <ZoomController mode={mode} center={startPos} />
           <MapClickHandler onMapClick={handleMapClick} />
 
           <Marker position={startPos} icon={startIcon} />
 
           <Circle
             center={startPos}
-            radius={radius}
+            radius={actualRadius}
             pathOptions={{ color: '#8b5cf6', weight: 1, fillColor: '#8b5cf6', fillOpacity: 0.1 }}
           />
 
@@ -526,7 +596,7 @@ export default function App() {
             {loadingParking && showParking ? (
               <RefreshCw className="w-6 h-6 animate-spin" />
             ) : (
-              <Car className="w-6 h-6" />
+              <SquareParking className="w-6 h-6" />
             )}
           </button>
         </div>
@@ -597,7 +667,10 @@ export default function App() {
                 </span>
                 <ChevronDown className="w-3 h-3 shrink-0" style={{ color: currentIntention.color }} />
               </button>
-              <span className="text-sm font-bold text-purple-400">{radius}m</span>
+              <ModeSwitch mode={mode} setMode={setMode} />
+              <span className="text-sm font-bold text-purple-400">
+                {mode === 'car' ? `${actualRadius / 1000}km` : `${actualRadius}m`}
+              </span>
             </div>
 
             <RadiusSlider radius={radius} setRadius={setRadius} setFetchRadius={setFetchRadius} />
@@ -793,10 +866,12 @@ export default function App() {
                 <div className="bg-black/30 p-3 rounded-xl border border-white/5">
                   <p className="text-xs font-bold text-purple-400 uppercase mb-1">How to use:</p>
                   <ul className="list-disc list-inside space-y-1">
-                    <li>Set your starting point (click on map or GPS).</li>
-                    <li>Choose a radius (500m to 5km).</li>
-                    <li>Generate your attractor.</li>
-                    <li>Go on an adventure!</li>
+                    <li>Define your starting point.</li>
+                    <li>Choose between walking or driving.</li>
+                    <li>Choose a travel purpose.</li>
+                    <li>Select a radius (from 500 m to 50 km).</li>
+                    <li>Generate your destination.</li>
+                    <li>Set off on an adventure!</li>
                   </ul>
                 </div>
               </div>
