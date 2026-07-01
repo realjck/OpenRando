@@ -4,16 +4,15 @@ OpenRando is an open-source, web-based alternative to Randonautica that generate
 
 By leveraging your device's native Cryptographically Secure Random Number Generator and applying Kernel Density Estimation (KDE), the application calculates concentrated areas of probability ("attractors") to break your daily routine and send you on an adventure. 
 
-### 👉 [Launch the App](https://realjck.github.io/OpenRando/)
+### 👉 [Launch the App](https://openrando.pxly.fr)
 
 ![OpenRando Screenshot](screenshot/OpenRando.jpg)
 
 **Features:**
 - Set your starting location via GPS or by clicking on the map.
-- Choose a search radius between 500m and 5km.
+- Switch between walking and driving mode (search radius 500m to 50km).
 - Select an Intention to tune the quantum generation strategy (9 modes available).
 - Generate unpredictable true-random destination points.
-- Toggle the display of parks, forests, and other public areas within your search radius.
 - Automatically identify the 3 closest parking spots to your generated destination.
 - Open the coordinates directly in Google Maps.
 

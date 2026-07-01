@@ -3,11 +3,11 @@
 ## Business Requirements
 
 - An open-source, web-based alternative to Randonautica that generates unique random real-world coordinates for exploration
-- The user sets a starting point (via GPS or map click) and a search radius (500m to 5km)
+- The user sets a starting point (via GPS or map click) and a search radius
+- The user picks a travel mode via a left/right switch: walking (default, radius 500m to 5km) or driving (radius x10, 5km to 50km). Switching modes keeps the slider position and auto-adjusts the map zoom so the radius circle stays framed
 - The user selects an Intention (one of 9 quantum generation strategies) before generating
 - The app generates a destination point based on Kernel Density Estimation applied to CSPRNG random points
 - Destination coordinates can be opened directly in Google Maps
-- Optional overlay: parks, forests, and other public areas within the radius (polygon display)
 - Optional overlay: the 3 closest parking spots to the generated destination (marker display)
 - The app runs entirely client-side, no backend, no user accounts, no persistence
 
@@ -17,7 +17,8 @@
 - Map rendering: `react-leaflet` + Leaflet.js with a dark CARTO tile layer
 - Animations: `motion` (Motion for React)
 - Icons: `lucide-react`
-- Deployed as a static site on GitHub Pages at `/OpenRando/` base path
+- Deployed as a static site on GitHub Pages under the custom domain `openrando.pxly.fr` (root `base: '/'`, `CNAME` file)
+- App version comes from `package.json`, injected at build time via a Vite `define` (`__APP_VERSION__`) and shown in the info modal
 - All logic is client-only — no server, no API keys required
 
 ## Project Structure
@@ -29,11 +30,12 @@ src/
   main.tsx              # React entry point
   services/
     quantumService.ts   # CSPRNG random generation + KDE attractor calculation
-    mapDataService.ts   # Overpass API calls for parking spots and public areas
+    mapDataService.ts   # Overpass API calls for parking spots
 public/
   manifest.json         # Web app manifest
 index.html              # HTML entry point
-vite.config.ts          # Vite config (base path, plugins, HMR)
+vite.config.ts          # Vite config (base path, __APP_VERSION__ define, plugins, HMR)
+CNAME                   # Custom domain for GitHub Pages (openrando.pxly.fr)
 ```
 
 ## Core Algorithms
@@ -60,19 +62,17 @@ vite.config.ts          # Vite config (base path, plugins, HMR)
 | `quest` | 768 | 60th percentile |
 
 ### Map Data (`mapDataService.ts`)
-- Queries the Overpass API (with fallback across 4 mirror instances) for:
-  - `amenity=parking` nodes/ways for parking spots
-  - `leisure` / `landuse` ways/relations for public areas (parks, forests, etc.)
-- Public areas: fetched debounced on position/radius change, with caching and abort control
+- Queries the Overpass API (with fallback across 4 mirror instances) for `amenity=parking` nodes/ways
+- `fetchMapData(lat, lon, radius, signal?)` returns `ParkingPoint[]`
 - Parking spots: fetched around the attractor (1km radius) when toggled, top 3 closest shown
 
 ## Color Scheme and UI
 
 - Dark theme throughout (`bg-zinc-900`, `bg-black`)
-- Accent purple `#8b5cf6` (purple-500): attractor marker, radius circle, KDE score badge
+- Accent purple `#8b5cf6` (purple-500): attractor marker, radius circle, KDE score badge, active travel-mode icon
 - Blue `#3b82f6` (blue-500): parking spots markers and toggle button
-- Green `#22c55e` (green-500): public area polygons and toggle button
 - Map tile: CartoDB dark_all
+- Travel-mode switch: a left/right toggle in the control panel, walking icon (custom SVG) on the left and car icon (`lucide` `Car`) on the right; the active mode's icon turns purple, the inactive one stays white. The parking FAB button uses a "P" square (`SquareParking`), matching its map marker
 
 ### Intention Colors
 Each intention has its own accent color used in the capsule button and modal:
@@ -108,10 +108,10 @@ npm run build     # Production build to dist/
 npm run preview   # Preview the production build locally
 ```
 
-The app is deployed to GitHub Pages via the `.github/` workflow. The `base` in `vite.config.ts` is set to `/OpenRando/`.
+The app is deployed to GitHub Pages via the `.github/` workflow, served on the custom domain `openrando.pxly.fr` (see `CNAME`). The `base` in `vite.config.ts` is `/`.
 
 ## External Services
 
-- **Overpass API**: used for map data (parking, public areas). No API key required. Four fallback mirrors are tried in sequence.
+- **Overpass API**: used for map data (parking). No API key required. Four fallback mirrors are tried in sequence.
 - **Google Maps**: attractor and parking popups link to `https://www.google.com/maps/search/?api=1&query=lat,lon`
 - No other external APIs or analytics.
